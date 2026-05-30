@@ -6,3 +6,35 @@ _local_reference/**
 # Raw pdftotext dumps (use generated markdown instead)
 docs/datasheet/.PF1550-extract.txt
 docs/datasheet/PF1550-extract.txt
+
+# Build directories
+build/
+build-verify/
+**/build/
+examples/esp32/build*/
+
+# ESP-IDF artifacts
+**/sdkconfig.old
+**/*.elf
+**/*.bin
+**/*.map
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+
+# IDE / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Python
+__pycache__/
+.venv/
+
+# Docs site output
+_site/
+docs/html/

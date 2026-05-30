@@ -1,6 +1,0 @@
-/home/conmed/Documents/GitHub_Nebs/pw-design/design/software/pw-controller-sw/hal/pw-hal-flux-v1/lib/core/hf-core-drivers/external/hf-pf1550-driver/build-verify/CMakeFiles/edit_cache.dir
-/home/conmed/Documents/GitHub_Nebs/pw-design/design/software/pw-controller-sw/hal/pw-hal-flux-v1/lib/core/hf-core-drivers/external/hf-pf1550-driver/build-verify/CMakeFiles/rebuild_cache.dir
-/home/conmed/Documents/GitHub_Nebs/pw-design/design/software/pw-controller-sw/hal/pw-hal-flux-v1/lib/core/hf-core-drivers/external/hf-pf1550-driver/build-verify/CMakeFiles/list_install_components.dir
-/home/conmed/Documents/GitHub_Nebs/pw-design/design/software/pw-controller-sw/hal/pw-hal-flux-v1/lib/core/hf-core-drivers/external/hf-pf1550-driver/build-verify/CMakeFiles/install.dir
-/home/conmed/Documents/GitHub_Nebs/pw-design/design/software/pw-controller-sw/hal/pw-hal-flux-v1/lib/core/hf-core-drivers/external/hf-pf1550-driver/build-verify/CMakeFiles/install/local.dir
-/home/conmed/Documents/GitHub_Nebs/pw-design/design/software/pw-controller-sw/hal/pw-hal-flux-v1/lib/core/hf-core-drivers/external/hf-pf1550-driver/build-verify/CMakeFiles/install/strip.dir
