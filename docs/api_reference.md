@@ -8,78 +8,145 @@ permalink: /docs/api_reference/
 
 # API reference
 
-## Namespace
+Complete reference for the `pf1550::` namespace. All symbols are exposed
+through `pf1550.hpp`; the implementation lives in `src/pf1550.ipp`.
 
-All symbols are in namespace `pf1550`.
+> Doxygen browsing: a full annotated API is published at
+> [n3b3x.github.io/hf-pf1550-driver](https://n3b3x.github.io/hf-pf1550-driver/)
+> alongside this Jekyll site.
 
-## Class `PF1550<BusType>`
+## Headers
 
-Header: `inc/pf1550.hpp` · Implementation: `src/pf1550.ipp`
+| File | Purpose |
+|------|---------|
+| [`inc/pf1550.hpp`](../inc/pf1550.hpp) | Templated driver class. |
+| [`inc/pf1550_i2c_interface.hpp`](../inc/pf1550_i2c_interface.hpp) | CRTP `BusInterface` + strap-pin enum. |
+| [`inc/pf1550_registers.hpp`](../inc/pf1550_registers.hpp) | All §12.1 / §12.2 datasheet registers + bit-field constants. |
+| [`inc/pf1550_diagnostics.hpp`](../inc/pf1550_diagnostics.hpp) | `RailId`, `FaultFlags`, `FaultSeverity`, snapshot, self-test types. |
+| [`inc/pf1550_voltage_tables.hpp`](../inc/pf1550_voltage_tables.hpp) | Code ↔ mV / code ↔ mA `constexpr` helpers. |
+| [`inc/pf1550_profiles.hpp`](../inc/pf1550_profiles.hpp) | `portenta_h7_default`, `portenta_h7_carrier` register tables. |
 
-### Construction
+## Class `pf1550::PF1550<BusType>`
 
-```cpp
-PF1550(BusType* bus, uint8_t address = kDefaultI2cAddress);
-```
+`BusType` must inherit `pf1550::BusInterface<BusType>` (CRTP).
 
-### Lifecycle
+### Construction & lifecycle
 
 | Method | Returns | Description |
 |--------|---------|-------------|
-| `EnsureInitialized()` | `bool` | Probe DEVICE_ID (0x7C) |
-| `IsInitialized()` | `bool` | Cached init state |
-| `GetI2cAddress()` | `uint8_t` | 7-bit address |
+| `PF1550(BusType*, uint8_t = kDefaultI2cAddress)` | — | Bind to a CRTP bus adapter. |
+| `EnsureInitialized()` | `bool` | Idempotent — verifies `DEVICE_ID == 0x7C`. |
+| `IsInitialized()` | `bool` | Cached init state. |
+| `GetI2cAddress()` | `uint8_t` | 7-bit address. |
+| `GetDriverVersion()` | `const char*` | CMake-generated semantic version. |
 
 ### Identification
 
 | Method | Description |
 |--------|-------------|
-| `ReadDeviceId(uint8_t& id)` | Read reg 0x00 |
-| `VerifyDevice()` | Check id == 0x7C |
+| `ReadDeviceId(uint8_t& id)` | Read register `0x00`. |
+| `VerifyDevice()` | Read + assert `id == kExpectedDeviceId`. |
 
-### Registers
-
-| Method | Description |
-|--------|-------------|
-| `ReadRegister(Register reg, uint8_t& value)` | Single-byte read |
-| `WriteRegister(Register reg, uint8_t value)` | Single-byte write |
-
-### Profiles
+### Raw register access
 
 | Method | Description |
 |--------|-------------|
-| `ApplyProfile(span<RegisterWrite>)` | Generic init table |
-| `ApplyPortentaH7DefaultProfile()` | `profiles::kPortentaH7Default` |
+| `ReadRegister(Register reg, uint8_t& value)` | Single-byte read. |
+| `WriteRegister(Register reg, uint8_t value)` | Single-byte write. |
 
-### Power / USB
-
-| Method | Description |
-|--------|-------------|
-| `SetPowerMode(PowerMode)` | STANDBY strap via `GpioSet` |
-| `SetUsbRails(vbus_en, otg_en)` | USB_VBUS_EN / USB_OTG_EN |
-
-### Diagnostics
+### Profile application
 
 | Method | Description |
 |--------|-------------|
-| `ReadPmicStatus(uint8_t&)` | Reg 0x67 |
-| `ReadOtpByte(addr, value)` | Indirect OTP read |
-| `ReadOtpRegion(buf, len, start)` | Bulk OTP read |
-| `SetSwVoltage(index, code)` | SW1–3 RUN voltage |
-| `SetLdoVoltage(index, code)` | LDO1–3 voltage |
-| `SetVbusCurrentLimitMa(mA)` | Reg 0x94 encoding |
+| `ApplyProfile(std::span<const RegisterWrite>)` | Apply an arbitrary write-table. |
+| `ApplyPortentaH7DefaultProfile()` | Legacy VFR profile. |
+| `ApplyPortentaH7CarrierProfile()` | **Recommended** — SW1-first, `SW2_CTRL=0x0F`. |
 
-### Errors
+### Power mode and strap GPIOs
 
-Bitmask enum `PF1550::Error`. Use `GetErrorFlags()` / `ClearErrorFlags()`.
+| Method | Description |
+|--------|-------------|
+| `SetPowerMode(PowerMode)` | Drive STANDBY strap. |
+| `SetUsbRails(bool vbus_en, bool otg_en)` | Drive USB_VBUS_EN / USB_OTG_EN. |
+
+### Status, charger, OTP
+
+| Method | Description |
+|--------|-------------|
+| `ReadPmicStatus(uint8_t&)` | Read `STATE_INFO` raw byte. |
+| `ReadPmicState(PmicState&)` | Decoded state (Wait/Run/Standby/Sleep/RegsDisable). |
+| `ReadChargerState(ChargerState&, uint8_t* raw=nullptr)` | Decode `CHG_SNS`. |
+| `ReadOtpByte(uint8_t addr, uint8_t&)` | Indirect OTP read via KEY1/KEY2/KEY3 + FMRADDR/FMRDATA. |
+| `ReadOtpRegion(uint8_t*, size_t, uint8_t start)` | Bulk OTP read. |
+
+### Voltage / current configuration
+
+| Method | Description |
+|--------|-------------|
+| `SetSwVoltage(uint8_t index, SwVoltageCode)` | Write `SWn_VOLT` (n=1..3). |
+| `SetLdoVoltage(uint8_t index, LdoVoltageCode)` | Write `LDOn_VOLT` (n=1..3). |
+| `SetVbusCurrentLimitMa(uint16_t mA)` | Encode + write `VBUS_IN_LIM_CNFG`. |
+
+### Interrupt management
+
+| Method | Description |
+|--------|-------------|
+| `ReadInterruptCategory(uint8_t&)` | `INT_CATEGORY` (0x06) summary. |
+| `ReadLatchedFaults(FaultFlags&)` | Aggregate every per-category `*_INT_STAT*` into a 32-bit bitmask. |
+| `ClearLatchedFaults()` | Write `0xFF` to every RW1C status register. |
+| `SetInterruptMaskAll(bool masked)` | Mask / unmask all categories at once. |
+
+### Diagnostics and self-test
+
+| Method | Description |
+|--------|-------------|
+| `ReadDiagnosticSnapshot(DiagnosticSnapshot&)` | One-shot read of identity, state, rails, faults, charger. |
+| `RunPowerSelfTest(SelfTestResult&)` | Boot-time classifier producing `FaultSeverity` (Info/Warning/Critical/McuKill). |
+
+### Error tracking
+
+`Error` is a bitmask enum (`I2cWrite`, `I2cRead`, `WrongDeviceId`,
+`ProfileApply`, `DiagnosticRead`, `SelfTestFailed`, …). Use
+`GetErrorFlags()` and `ClearErrorFlags(mask)` to introspect.
+
+## Free helpers (`pf1550_voltage_tables.hpp`)
+
+| Function | Purpose |
+|----------|---------|
+| `SwCodeToMillivolts(uint8_t code)` | Decode SW1/2/3 voltage code (Portenta-verified subset). |
+| `SwMillivoltsToCode(uint16_t mv)` | Reverse. `0xFF` if out of grid. |
+| `LdoCodeToMillivolts(uint8_t code, bool is_ldo2)` | Decode LDO1/3 (group A) or LDO2 (group B). |
+| `VbusLimitRegToMilliamps(uint8_t)` / `VbusLimitMilliampsToReg(uint16_t)` | VBUS LUT. |
+| `SwCurrentLimitCodeToMilliamps(uint8_t)` | Decode `SWn_CTRL1[1:0]`. |
+| `DecodeStateInfo(uint8_t)` / `DecodeChargerSense(uint8_t)` | Typed enum decoders. |
+
+## Diagnostic types (`pf1550_diagnostics.hpp`)
+
+| Type | Purpose |
+|------|---------|
+| `RailId` | `Sw1..Sw3`, `Ldo1..Ldo3`, `Vsnvs`. |
+| `FaultSeverity` | `kInfo`, `kWarning`, `kCritical`, `kMcuKill`. |
+| `FaultFlags` | Bitmask covering SW HS/LS, LDO faults, temp, MISC, charger, driver I²C. |
+| `RailDiagnostics` | Per-rail: ctrl byte, voltage code, decoded mV, enable bits, latched/live. |
+| `DiagnosticSnapshot` | Full PMIC state — used by HAL handler + manager. |
+| `SelfTestResult` | Output of `RunPowerSelfTest`. |
+
+The free `FaultSeverityPortentaH7(uint32_t flag)` and
+`WorstSeverityPortentaH7(FaultFlags)` map each fault to its
+Portenta-H7-specific severity (see
+[`docs/quality/diovv-pmic.md`](../../../../docs/quality/diovv-pmic.md)
+in `pw-controller-sw` for the rationale).
 
 ## Constants
 
 | Name | Value |
 |------|-------|
-| `kDefaultI2cAddress` | 0x08 |
-| `kExpectedDeviceId` | 0x7C |
+| `kDefaultI2cAddress` | `0x08` |
+| `kExpectedDeviceId` | `0x7C` |
+| `kChargerPageBase` | `0x80` |
 
-## Version
+## Threading
 
-`PF1550<BusType>::GetDriverVersion()` → CMake-generated string.
+The driver itself is **not** thread-safe; the HAL handler
+`Pf1550Handler` provides RTOS-mutex-protected wrappers for use from
+multiple threads.

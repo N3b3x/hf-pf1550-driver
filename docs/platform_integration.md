@@ -34,8 +34,13 @@ Pf1550Handler pmic(
 
 pmic.SetPowerMode(pf1550::PowerMode::Run);
 pmic.SetUsbRails(true, true);
-pmic.ApplyPortentaH7Profile();
+// Carrier / module with LDO inputs on +3V1SW (SW1):
+pmic.ApplyPortentaH7CarrierProfile();
+// Legacy: pmic.ApplyPortentaH7Profile();
 ```
+
+Call profile init **early** in boot (after GPIO straps, before USB/Ethernet).
+Requires **cold power cycle** for first apply after OTP boot.
 
 ## Thread safety
 

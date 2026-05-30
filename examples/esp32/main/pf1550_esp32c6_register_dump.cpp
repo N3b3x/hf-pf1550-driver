@@ -33,7 +33,8 @@ constexpr std::array<pf1550::Register, 16> kDumpRegs = {
     pf1550::Register::Ldo3Volt,
     pf1550::Register::Ldo3Ctrl,
     pf1550::Register::VbusInCurrentLimit,
-    pf1550::Register::PmicStatus,
+    pf1550::Register::StateInfo,
+    pf1550::Register::ChgSense,
 };
 
 } // namespace

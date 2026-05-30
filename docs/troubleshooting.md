@@ -36,7 +36,17 @@ Assert strap GPIOs **before** USB init:
 - USB_VBUS_EN = HIGH
 - USB_OTG_EN = HIGH
 
-CubeMX default GPIO may drive USB rails LOW.
+Apply **`portenta_h7_carrier`** (or manufacturing `PwPmic_ApplyCarrierProfile`) on
+**cold boot** before PLL. CubeMX default GPIO may drive USB rails LOW.
+
+## Carrier +3V3 / JTAG VTref = 0
+
+SW2 (BUCK2) powers carrier +3V3. MCU may run on SW3 (+3V1 VCORE) while SW2 is
+off. Use carrier profile with `SW2_CTRL=0x0F` and verify `[pmic]` on UART7.
+
+## LDO outputs dead but MCU runs
+
+LDO inputs are wired to +3V1SW (SW1). Verify SW1 before LDO1/2/3.
 
 ## ESP32 example: no device
 

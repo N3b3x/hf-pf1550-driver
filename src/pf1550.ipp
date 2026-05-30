@@ -112,6 +112,11 @@ bool PF1550<BusType>::ApplyPortentaH7DefaultProfile() noexcept {
 }
 
 template <typename BusType>
+bool PF1550<BusType>::ApplyPortentaH7CarrierProfile() noexcept {
+  return ApplyProfile(profiles::kPortentaH7Carrier);
+}
+
+template <typename BusType>
 bool PF1550<BusType>::SetPowerMode(PowerMode mode) noexcept {
   if (bus_ == nullptr) {
     setError(Error::InvalidParam);
@@ -144,7 +149,32 @@ bool PF1550<BusType>::SetUsbRails(bool vbus_en, bool otg_en) noexcept {
 
 template <typename BusType>
 bool PF1550<BusType>::ReadPmicStatus(uint8_t& status) noexcept {
-  return readReg8(static_cast<uint8_t>(Register::PmicStatus), status);
+  return readReg8(static_cast<uint8_t>(Register::StateInfo), status);
+}
+
+template <typename BusType>
+bool PF1550<BusType>::ReadPmicState(PmicState& state) noexcept {
+  uint8_t raw = 0;
+  if (!ReadPmicStatus(raw)) {
+    state = PmicState::Unknown;
+    return false;
+  }
+  state = DecodeStateInfo(raw);
+  return true;
+}
+
+template <typename BusType>
+bool PF1550<BusType>::ReadChargerState(ChargerState& state, uint8_t* raw_reg) noexcept {
+  uint8_t raw = 0;
+  if (!readReg8(static_cast<uint8_t>(Register::ChgSense), raw)) {
+    state = ChargerState::Unknown;
+    return false;
+  }
+  if (raw_reg != nullptr) {
+    *raw_reg = raw;
+  }
+  state = DecodeChargerSense(raw);
+  return true;
 }
 
 template <typename BusType>
@@ -223,14 +253,245 @@ bool PF1550<BusType>::SetLdoVoltage(uint8_t ldo_index, LdoVoltageCode code) noex
 
 template <typename BusType>
 bool PF1550<BusType>::SetVbusCurrentLimitMa(uint16_t limit_ma) noexcept {
-  // PF1550 VBUS limit: value = (limit_ma / 50) << 3 per Portenta bootloader (1500 mA -> 0xA0)
-  if (limit_ma == 0 || (limit_ma % 50) != 0) {
+  const uint8_t value = VbusLimitMilliampsToReg(limit_ma);
+  if (value == 0xFFU) {
     setError(Error::InvalidParam);
     return false;
   }
-  const uint8_t steps = static_cast<uint8_t>(limit_ma / 50U);
-  const uint8_t value = static_cast<uint8_t>(steps << 3);
   return writeReg8(static_cast<uint8_t>(Register::VbusInCurrentLimit), value);
+}
+
+// ---------------------------------------------------------------------------
+// Interrupt management
+// ---------------------------------------------------------------------------
+
+template <typename BusType>
+bool PF1550<BusType>::ReadInterruptCategory(uint8_t& category) noexcept {
+  return readReg8(static_cast<uint8_t>(Register::IntCategory), category);
+}
+
+template <typename BusType>
+bool PF1550<BusType>::ReadLatchedFaults(FaultFlags& faults) noexcept {
+  faults = FaultFlags{};
+  uint8_t sw0 = 0, sw1 = 0, ldo0 = 0, temp0 = 0, misc0 = 0, chg = 0, vbus = 0;
+  bool any_fail = false;
+
+  any_fail |= !readReg8(static_cast<uint8_t>(Register::SwIntStat0), sw0);
+  any_fail |= !readReg8(static_cast<uint8_t>(Register::SwIntStat1), sw1);
+  any_fail |= !readReg8(static_cast<uint8_t>(Register::LdoIntStat0), ldo0);
+  any_fail |= !readReg8(static_cast<uint8_t>(Register::TempIntStat0), temp0);
+  any_fail |= !readReg8(static_cast<uint8_t>(Register::MiscIntStat0), misc0);
+  any_fail |= !readReg8(static_cast<uint8_t>(Register::ChgInt), chg);
+  any_fail |= !readReg8(static_cast<uint8_t>(Register::VbusSns), vbus);
+
+  if (sw0 & SwIntStat0Bits::kSw1Ls) faults.Set(FaultFlags::kSw1Ls);
+  if (sw0 & SwIntStat0Bits::kSw2Ls) faults.Set(FaultFlags::kSw2Ls);
+  if (sw0 & SwIntStat0Bits::kSw3Ls) faults.Set(FaultFlags::kSw3Ls);
+  if (sw1 & SwIntStat1Bits::kSw1Hs) faults.Set(FaultFlags::kSw1Hs);
+  if (sw1 & SwIntStat1Bits::kSw2Hs) faults.Set(FaultFlags::kSw2Hs);
+  if (sw1 & SwIntStat1Bits::kSw3Hs) faults.Set(FaultFlags::kSw3Hs);
+  if (ldo0 & LdoIntStat0Bits::kLdo1Fault) faults.Set(FaultFlags::kLdo1Fault);
+  if (ldo0 & LdoIntStat0Bits::kLdo2Fault) faults.Set(FaultFlags::kLdo2Fault);
+  if (ldo0 & LdoIntStat0Bits::kLdo3Fault) faults.Set(FaultFlags::kLdo3Fault);
+  if (temp0 & TempIntStat0Bits::kTempWarn) faults.Set(FaultFlags::kTempWarn);
+  if (temp0 & TempIntStat0Bits::kTempShdn) faults.Set(FaultFlags::kTempShdn);
+  if (misc0 & MiscIntStat0Bits::kPwrOn) faults.Set(FaultFlags::kPwrOn);
+  if (misc0 & MiscIntStat0Bits::kVsysLow) faults.Set(FaultFlags::kVsysLow);
+  if (misc0 & MiscIntStat0Bits::kVsysOv) faults.Set(FaultFlags::kVsysOv);
+  if (misc0 & MiscIntStat0Bits::kWdiAssert) faults.Set(FaultFlags::kWdiAssert);
+  if (misc0 & MiscIntStat0Bits::kResetBmcu) faults.Set(FaultFlags::kResetBmcu);
+  if (chg != 0) faults.Set(FaultFlags::kChgFault);
+  // VBUS_VALID is bit 5 of VBUS_SNS — invalid means !bit5.
+  if ((vbus & (1u << 5)) == 0) faults.Set(FaultFlags::kVbusInval);
+
+  if (any_fail) {
+    faults.Set(FaultFlags::kI2cReadFail);
+    setError(Error::DiagnosticRead);
+    return false;
+  }
+  return true;
+}
+
+template <typename BusType>
+bool PF1550<BusType>::ClearLatchedFaults() noexcept {
+  const uint8_t kClearAll = 0xFFU;
+  bool ok = true;
+  ok &= writeReg8(static_cast<uint8_t>(Register::SwIntStat0), kClearAll);
+  ok &= writeReg8(static_cast<uint8_t>(Register::SwIntStat1), kClearAll);
+  ok &= writeReg8(static_cast<uint8_t>(Register::SwIntStat2), kClearAll);
+  ok &= writeReg8(static_cast<uint8_t>(Register::LdoIntStat0), kClearAll);
+  ok &= writeReg8(static_cast<uint8_t>(Register::TempIntStat0), kClearAll);
+  ok &= writeReg8(static_cast<uint8_t>(Register::OnKeyIntStat0), kClearAll);
+  ok &= writeReg8(static_cast<uint8_t>(Register::MiscIntStat0), kClearAll);
+  ok &= writeReg8(static_cast<uint8_t>(Register::ChgInt), kClearAll);
+  return ok;
+}
+
+template <typename BusType>
+bool PF1550<BusType>::SetInterruptMaskAll(bool masked) noexcept {
+  const uint8_t mask_value = masked ? 0xFFU : 0x00U;
+  bool ok = true;
+  ok &= writeReg8(static_cast<uint8_t>(Register::SwIntMask0), mask_value);
+  ok &= writeReg8(static_cast<uint8_t>(Register::SwIntMask1), mask_value);
+  ok &= writeReg8(static_cast<uint8_t>(Register::SwIntMask2), mask_value);
+  ok &= writeReg8(static_cast<uint8_t>(Register::LdoIntMask0), mask_value);
+  ok &= writeReg8(static_cast<uint8_t>(Register::TempIntMask0), mask_value);
+  ok &= writeReg8(static_cast<uint8_t>(Register::OnKeyIntMask0), mask_value);
+  ok &= writeReg8(static_cast<uint8_t>(Register::MiscIntMask0), mask_value);
+  ok &= writeReg8(static_cast<uint8_t>(Register::ChgIntMask), mask_value);
+  return ok;
+}
+
+// ---------------------------------------------------------------------------
+// Diagnostic snapshot + self-test
+// ---------------------------------------------------------------------------
+
+template <typename BusType>
+bool PF1550<BusType>::fillRailSnapshot(DiagnosticSnapshot& snap) noexcept {
+  struct RailMap {
+    RailId   id;
+    Register volt_reg;
+    Register ctrl_reg;
+    bool     is_ldo2;  // true → LDO2 group B encoding
+    bool     is_sw;
+  };
+  static constexpr RailMap kMap[] = {
+      {RailId::Sw1,  Register::Sw1Volt,  Register::Sw1Ctrl,  false, true},
+      {RailId::Sw2,  Register::Sw2Volt,  Register::Sw2Ctrl,  false, true},
+      {RailId::Sw3,  Register::Sw3Volt,  Register::Sw3Ctrl,  false, true},
+      {RailId::Ldo1, Register::Ldo1Volt, Register::Ldo1Ctrl, false, false},
+      {RailId::Ldo2, Register::Ldo2Volt, Register::Ldo2Ctrl, true,  false},
+      {RailId::Ldo3, Register::Ldo3Volt, Register::Ldo3Ctrl, false, false},
+  };
+  bool ok = true;
+  for (const auto& m : kMap) {
+    auto& d = snap.rails[static_cast<size_t>(m.id)];
+    if (!readReg8(static_cast<uint8_t>(m.volt_reg), d.volt_reg)) { ok = false; continue; }
+    if (!readReg8(static_cast<uint8_t>(m.ctrl_reg), d.ctrl_reg)) { ok = false; continue; }
+    if (m.is_sw) {
+      d.set_voltage_mv = SwCodeToMillivolts(d.volt_reg & 0x3FU);
+    } else {
+      d.set_voltage_mv = LdoCodeToMillivolts(d.volt_reg & 0x1FU, m.is_ldo2);
+    }
+    d.enabled_run  = (d.ctrl_reg & SwCtrlBits::kEn) != 0;
+    d.enabled_stby = (d.ctrl_reg & SwCtrlBits::kStbyEn) != 0;
+  }
+  return ok;
+}
+
+template <typename BusType>
+bool PF1550<BusType>::fillFaultSnapshot(DiagnosticSnapshot& snap) noexcept {
+  if (!ReadLatchedFaults(snap.faults)) {
+    return false;
+  }
+  // Per-rail latched + live mapping.
+  uint8_t sw_sense0 = 0, sw_sense1 = 0, ldo_sense = 0;
+  (void)readReg8(static_cast<uint8_t>(Register::SwIntSense0), sw_sense0);
+  (void)readReg8(static_cast<uint8_t>(Register::SwIntSense1), sw_sense1);
+  (void)readReg8(static_cast<uint8_t>(Register::LdoIntSense0), ldo_sense);
+
+  auto mark = [&](RailId id, bool latched, bool live) {
+    auto& d = snap.rails[static_cast<size_t>(id)];
+    d.stat_latched = latched;
+    d.sense_live   = live;
+  };
+  mark(RailId::Sw1,
+       snap.faults.Has(FaultFlags::kSw1Ls | FaultFlags::kSw1Hs),
+       ((sw_sense0 & SwIntStat0Bits::kSw1Ls) || (sw_sense1 & SwIntStat1Bits::kSw1Hs)) != 0);
+  mark(RailId::Sw2,
+       snap.faults.Has(FaultFlags::kSw2Ls | FaultFlags::kSw2Hs),
+       ((sw_sense0 & SwIntStat0Bits::kSw2Ls) || (sw_sense1 & SwIntStat1Bits::kSw2Hs)) != 0);
+  mark(RailId::Sw3,
+       snap.faults.Has(FaultFlags::kSw3Ls | FaultFlags::kSw3Hs),
+       ((sw_sense0 & SwIntStat0Bits::kSw3Ls) || (sw_sense1 & SwIntStat1Bits::kSw3Hs)) != 0);
+  mark(RailId::Ldo1, snap.faults.Has(FaultFlags::kLdo1Fault),
+       (ldo_sense & LdoIntStat0Bits::kLdo1Fault) != 0);
+  mark(RailId::Ldo2, snap.faults.Has(FaultFlags::kLdo2Fault),
+       (ldo_sense & LdoIntStat0Bits::kLdo2Fault) != 0);
+  mark(RailId::Ldo3, snap.faults.Has(FaultFlags::kLdo3Fault),
+       (ldo_sense & LdoIntStat0Bits::kLdo3Fault) != 0);
+  return true;
+}
+
+template <typename BusType>
+bool PF1550<BusType>::ReadDiagnosticSnapshot(DiagnosticSnapshot& out) noexcept {
+  out = DiagnosticSnapshot{};
+  bool ok = true;
+  ok &= readReg8(static_cast<uint8_t>(Register::DeviceId),    out.device_id);
+  ok &= readReg8(static_cast<uint8_t>(Register::OtpFlavor),   out.otp_flavor);
+  ok &= readReg8(static_cast<uint8_t>(Register::SiliconRev),  out.silicon_rev);
+  ok &= readReg8(static_cast<uint8_t>(Register::IntCategory), out.int_category);
+  ok &= readReg8(static_cast<uint8_t>(Register::StateInfo),   out.state_info_reg);
+  out.state = DecodeStateInfo(out.state_info_reg);
+
+  uint8_t chg_raw = 0;
+  if (readReg8(static_cast<uint8_t>(Register::ChgSense), chg_raw)) {
+    out.chg_sense_reg = chg_raw;
+    out.charger = DecodeChargerSense(chg_raw);
+  } else {
+    ok = false;
+  }
+  ok &= readReg8(static_cast<uint8_t>(Register::VbusSns), out.vbus_sns_reg);
+
+  uint8_t vbus_lim_reg = 0;
+  if (readReg8(static_cast<uint8_t>(Register::VbusInCurrentLimit), vbus_lim_reg)) {
+    out.vbus_in_limit_ma = VbusLimitRegToMilliamps(vbus_lim_reg);
+  }
+
+  ok &= fillRailSnapshot(out);
+  ok &= fillFaultSnapshot(out);
+
+  out.read_ok = ok;
+  if (!ok) {
+    setError(Error::DiagnosticRead);
+  }
+  return ok;
+}
+
+template <typename BusType>
+bool PF1550<BusType>::RunPowerSelfTest(SelfTestResult& out) noexcept {
+  out = SelfTestResult{};
+  out.ran = true;
+
+  if (!ReadDiagnosticSnapshot(out.snapshot)) {
+    out.worst_severity = FaultSeverity::kMcuKill;  // could not even read PMIC
+    setError(Error::SelfTestFailed);
+    return false;
+  }
+
+  out.device_id_ok = (out.snapshot.device_id == kExpectedDeviceId);
+  out.state_run = (out.snapshot.state == PmicState::Run);
+
+  out.all_rails_enabled = true;
+  for (size_t i = 0; i < static_cast<size_t>(RailId::COUNT); ++i) {
+    // Skip VSNVS (no `EN` bit in same place).
+    if (static_cast<RailId>(i) == RailId::Vsnvs) continue;
+    if (!out.snapshot.rails[i].enabled_run) {
+      out.all_rails_enabled = false;
+      break;
+    }
+  }
+
+  out.faults = out.snapshot.faults;
+  out.worst_severity = WorstSeverityPortentaH7(out.faults);
+
+  auto sev_val = [](FaultSeverity s) noexcept {
+    return static_cast<uint8_t>(s);
+  };
+  auto raise = [&](FaultSeverity target) noexcept {
+    if (sev_val(out.worst_severity) < sev_val(target)) {
+      out.worst_severity = target;
+    }
+  };
+
+  if (!out.device_id_ok)      raise(FaultSeverity::kMcuKill);
+  if (!out.state_run)         raise(FaultSeverity::kCritical);
+  if (!out.all_rails_enabled) raise(FaultSeverity::kCritical);
+
+  if (out.worst_severity != FaultSeverity::kInfo) {
+    setError(Error::SelfTestFailed);
+  }
+  return out.worst_severity == FaultSeverity::kInfo;
 }
 
 } // namespace pf1550

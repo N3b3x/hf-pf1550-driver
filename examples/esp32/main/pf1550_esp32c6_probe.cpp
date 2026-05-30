@@ -45,12 +45,20 @@ extern "C" void app_main(void) {
   }
 
 #if defined(CONFIG_PF1550_APPLY_PORTENTA_PROFILE) && CONFIG_PF1550_APPLY_PORTENTA_PROFILE
-  ESP_LOGW(TAG, "Applying Portenta H7 profile — use only on unprogrammed / lab PMIC");
+  ESP_LOGW(TAG, "Applying Portenta profile — use only on unprogrammed / lab PMIC");
+#if defined(CONFIG_PF1550_PROFILE_CARRIER) && CONFIG_PF1550_PROFILE_CARRIER
+  if (pmic.ApplyPortentaH7CarrierProfile()) {
+    ESP_LOGI(TAG, "Profile '%s' applied", pf1550::profiles::kPortentaH7CarrierName);
+  } else {
+    ESP_LOGE(TAG, "Profile apply failed (flags=0x%04X)", pmic.GetErrorFlags());
+  }
+#else
   if (pmic.ApplyPortentaH7DefaultProfile()) {
     ESP_LOGI(TAG, "Profile '%s' applied", pf1550::profiles::kPortentaH7DefaultName);
   } else {
     ESP_LOGE(TAG, "Profile apply failed (flags=0x%04X)", pmic.GetErrorFlags());
   }
+#endif
 #endif
 
   while (true) {

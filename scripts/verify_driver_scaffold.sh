@@ -63,17 +63,26 @@ else
   FAIL=1
 fi
 
-echo "--- Profile array size ---"
+echo "--- Profile array sizes ---"
 python3 - <<'PY'
 import re, sys
 from pathlib import Path
 text = Path("inc/pf1550_profiles.hpp").read_text()
-m = re.search(r"std::array<RegisterWrite,\s*(\d+)>", text)
-entries = len(re.findall(r"\{0x[0-9A-Fa-f]+,", text))
-if not m or int(m.group(1)) != entries:
-    print(f"FAIL profile count: declared={m.group(1) if m else '?'} entries={entries}")
+fail = False
+for name in text.split("inline constexpr std::array<RegisterWrite,"):
+    if "kPortentaH7" not in name:
+        continue
+    block = "inline constexpr std::array<RegisterWrite," + name.split("};", 1)[0]
+    declared = re.search(r"RegisterWrite,\s*(\d+)>", block)
+    var = re.search(r"kPortentaH7\w+", block)
+    entries = len(re.findall(r"\{0x[0-9A-Fa-f]+,", block))
+    if not declared or int(declared.group(1)) != entries:
+        print(f"FAIL {var.group(0) if var else '?'}: declared={declared.group(1) if declared else '?'} entries={entries}")
+        fail = True
+    else:
+        print(f"OK  {var.group(0) if var else '?'} entries={entries}")
+if fail:
     sys.exit(1)
-print(f"OK  profile entries={entries}")
 PY
 
 if [[ -f "_local_reference/datasheet/PF1550.pdf" ]]; then

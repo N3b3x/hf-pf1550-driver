@@ -20,6 +20,9 @@ The ESP32-C6 examples exercise the **driver API over I2C**. They do not require 
 
 Connect to a PF1550 eval board or Portenta PMIC tap for live reads.
 
+For **external provisioning before MCU bring-up** (I2C test pads on custom
+boards), see [ESP32-C6 provisioning](esp32-provisioning.md).
+
 ## Expected probe output
 
 With PF1550 present:

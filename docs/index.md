@@ -25,19 +25,21 @@ Welcome. This site mirrors the [`docs/`](https://github.com/N3b3x/hf-pf1550-driv
 ### Hardware & integration
 
 4. **[Hardware setup — ESP32-C6](hardware_setup.md)** — Lab I2C wiring for examples
-5. **[Portenta H7 profile](portenta-profile.md)** — Rails, straps, init sequence
-6. **[CMake integration](cmake_integration.md)** — `hf::pf1550`, build settings
-7. **[Platform integration](platform_integration.md)** — hf-core `Pf1550Handler`
+5. **[ESP32-C6 provisioning](esp32-provisioning.md)** — External I2C PMIC setup before MCU bring-up
+6. **[Portenta H7 profile](portenta-profile.md)** — Default + `carrier` profiles, rails, straps
+7. **[Configuration](configuration.md)** — Profiles, per-rail tuning, interrupt masks
+8. **[CMake integration](cmake_integration.md)** — `hf::pf1550`, build settings
+9. **[Platform integration](platform_integration.md)** — hf-core `Pf1550Handler`
 
 ### Reference & examples
 
-8. **[API reference](api_reference.md)** — `PF1550<BusType>`, profiles, errors
-9. **[Examples](examples.md)** — ESP32-C6 probe and register dump
-10. **[Troubleshooting](troubleshooting.md)** — OTP locks, I2C, power-cycle behavior
+9. **[API reference](api_reference.md)** — `PF1550<BusType>`, diagnostics, errors
+10. **[Examples](examples.md)** — ESP32-C6 probe, diagnostics, provisioning
+11. **[Troubleshooting](troubleshooting.md)** — OTP locks, I2C, power-cycle behavior
 
 ### Manufacturer
 
-11. **[Datasheet & links](datasheet/README.md)** — PDF fetch, readable extracts
+12. **[Datasheet & links](datasheet/README.md)** — PDF fetch, readable extracts
 
 ## Recommended reading order
 

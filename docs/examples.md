@@ -14,6 +14,8 @@ permalink: /docs/examples/
 |-----|--------|-------------|
 | `pf1550_esp32c6_probe` | `pf1550_esp32c6_probe.cpp` | DEVICE_ID + PMIC_STATUS |
 | `pf1550_esp32c6_register_dump` | `pf1550_esp32c6_register_dump.cpp` | Key regulator registers |
+| `pf1550_esp32c6_diagnostics` | `pf1550_esp32c6_diagnostics.cpp` | Snapshot + self-test loop |
+| **`pf1550_esp32c6_provision`** | `pf1550_esp32c6_provision.cpp` | **External I2C provisioning (pre-MCU bring-up)** |
 
 Clone **with submodules**:
 
@@ -27,6 +29,9 @@ git submodule update --init --recursive
 ```
 
 Configuration matrix: `examples/esp32/app_config.yml`.
+
+For **external PMIC provisioning** before MCU bring-up, see
+[ESP32-C6 provisioning](esp32-provisioning.md).
 
 ## Optional profile apply
 

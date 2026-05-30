@@ -46,16 +46,22 @@ You implement a small **CRTP bus adapter** (`pf1550::BusInterface<YourBus>`) for
 
 ## ✨ Features
 
-- ✅ **Header-only C++20** — `pf1550::PF1550<BusType>` with `.ipp` implementation
+- ✅ **Header-only C++20** — `pf1550::PF1550<BusType>` with `.ipp` template implementation
 - ✅ **CRTP bus interface** — zero virtual overhead on I2C path
-- ✅ **Portenta H7 profile** — `portenta_h7_default` from VFR / Synapse heritage
-- ✅ **Register map** — curated headers + auto-generated datasheet Section 12 extract
-- ✅ **OTP read helpers** — indirect FMRADDR/FMRDATA access
-- ✅ **Strap pin hooks** — STANDBY, USB_VBUS_EN, USB_OTG_EN
-- ✅ **CMake package** — `hf::pf1550`, ESP-IDF component wrapper
-- ✅ **hf-core handler** — `Pf1550Handler` via `HF_CORE_ENABLE_PF1550`
-- ✅ **ESP32-C6 examples** — CI-safe I2C probe without hardware
-- ✅ **CI** — ESP32 matrix build, C++ lint, docs link check, YAML lint
+- ✅ **Portenta H7 profiles** — `portenta_h7_default` (VFR) and **`portenta_h7_carrier`** (SW1-first, full SW2 enable, charger-LED off)
+- ✅ **Full register map** — every §12.1 / §12.2 datasheet register exposed by symbolic name + bit-field constants (`SwCtrlBits`, `LdoCtrlBits`, `MiscIntStat0Bits`, …)
+- ✅ **Voltage / current decoders** — `SwCodeToMillivolts`, `LdoCodeToMillivolts`, `VbusLimitRegToMilliamps`, `SwCurrentLimitCodeToMilliamps` — all `constexpr`
+- ✅ **State decoders** — `DecodeStateInfo` (Run/Standby/Sleep/RegsDisable) and `DecodeChargerSense` (PreCharge/FastCC/Done/…)
+- ✅ **Diagnostic snapshot** — `ReadDiagnosticSnapshot()` reads identity, state, per-rail enable/voltage, latched + live faults, and charger state in one call
+- ✅ **Boot-time self-test** — `RunPowerSelfTest()` classifies the snapshot into `FaultSeverity::{Info, Warning, Critical, McuKill}` using Portenta H7 wiring
+- ✅ **Interrupt API** — `ReadInterruptCategory`, `ReadLatchedFaults`, `ClearLatchedFaults`, `SetInterruptMaskAll`
+- ✅ **OTP read helpers** — indirect FMRADDR/FMRDATA access with KEY1/KEY2/KEY3 unlock
+- ✅ **Strap pin hooks** — STANDBY, USB_VBUS_EN, USB_OTG_EN via CRTP `GpioSet`
+- ✅ **CMake package** — `hf::pf1550`, ESP-IDF component wrapper, semver header
+- ✅ **hf-core handler** — `Pf1550Handler` via `HF_CORE_ENABLE_PF1550` (thread-safe, cached snapshot, fault-severity classifier)
+- ✅ **ESP32-C6 examples** — CI-safe I2C probe + register dump (no hardware required)
+- ✅ **Documentation** — Doxygen + Jekyll GitHub Pages, `docs/datasheet/` auto-generated extract, **DIOVV traceability** for medical-device use
+- ✅ **CI** — ESP32 matrix build, C++ lint, C++ static analysis, docs link check, YAML lint, markdownlint, release packaging
 
 ## 🚀 Quick Start
 
@@ -118,10 +124,12 @@ Full API: [docs/api_reference.md](docs/api_reference.md)
 |---------|--------|-------------|
 | `pf1550_esp32c6_probe` | ESP32-C6 | DEVICE_ID + status |
 | `pf1550_esp32c6_register_dump` | ESP32-C6 | Regulator register dump |
+| `pf1550_esp32c6_diagnostics` | ESP32-C6 | Snapshot + self-test loop |
+| **`pf1550_esp32c6_provision`** | ESP32-C6 | **External I2C provisioning (pre-MCU)** |
 
 ```bash
 cd examples/esp32
-./scripts/build_app.sh pf1550_esp32c6_probe Debug
+./scripts/build_app.sh pf1550_esp32c6_provision Debug
 ```
 
 ## 📚 Documentation

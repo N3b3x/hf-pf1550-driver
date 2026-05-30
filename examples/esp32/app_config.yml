@@ -32,6 +32,35 @@ apps:
     ci_enabled: true
     hardware_required: false
 
+  pf1550_esp32c6_diagnostics:
+    description: "Full diagnostic snapshot + boot self-test + fault classification"
+    source_file: "pf1550_esp32c6_diagnostics.cpp"
+    category: "example"
+    idf_versions: ["release/v5.5"]
+    build_types: ["Debug", "Release"]
+    ci_enabled: true
+    hardware_required: false
+    features:
+      - "ReadDiagnosticSnapshot every 5 s"
+      - "RunPowerSelfTest on boot"
+      - "Portenta H7 severity classification (FaultSeverity::McuKill etc.)"
+      - "Latched-fault clear loop"
+
+  pf1550_esp32c6_provision:
+    description: "External PMIC provisioning before host MCU bring-up (I2C test pads)"
+    source_file: "pf1550_esp32c6_provision.cpp"
+    category: "example"
+    idf_versions: ["release/v5.5"]
+    build_types: ["Debug", "Release"]
+    ci_enabled: true
+    featured: true
+    hardware_required: false
+    features:
+      - "Apply portenta_h7_carrier profile over external I2C"
+      - "Optional STANDBY / USB strap GPIO drive via Kconfig"
+      - "Boot self-test + bench voltage checklist"
+      - "Continuous rail monitor after provision"
+
 build_config:
   build_types:
     Debug:

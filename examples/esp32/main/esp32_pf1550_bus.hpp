@@ -24,22 +24,24 @@ extern "C" {
 
 #include "pf1550_i2c_interface.hpp"
 
+#include "sdkconfig.h"
+
 static constexpr const char* TAG_PF1550_I2C = "PF1550_I2C";
 
 class Esp32Pf1550Bus : public pf1550::BusInterface<Esp32Pf1550Bus> {
 public:
   struct I2CConfig {
     i2c_port_t port = I2C_NUM_0;
-    gpio_num_t sda_pin = GPIO_NUM_4;
-    gpio_num_t scl_pin = GPIO_NUM_5;
-    uint32_t frequency = 400000;
+    gpio_num_t sda_pin = static_cast<gpio_num_t>(CONFIG_PF1550_I2C_SDA_GPIO);
+    gpio_num_t scl_pin = static_cast<gpio_num_t>(CONFIG_PF1550_I2C_SCL_GPIO);
+    uint32_t frequency = static_cast<uint32_t>(CONFIG_PF1550_I2C_FREQ_HZ);
     bool pullup_enable = true;
   };
 
   Esp32Pf1550Bus() : Esp32Pf1550Bus(I2CConfig{}) {}
 
   explicit Esp32Pf1550Bus(const I2CConfig& config)
-      : config_(config), bus_handle_(nullptr), initialized_(false) {}
+      : config_(config), bus_handle_(nullptr), initialized_(false), straps_initialized_(false) {}
 
   ~Esp32Pf1550Bus() { Deinit(); }
 
@@ -49,6 +51,8 @@ public:
     if (initialized_) {
       return true;
     }
+
+    initStrapGpios();
 
     i2c_master_bus_config_t bus_config = {};
     bus_config.i2c_port = config_.port;
@@ -129,17 +133,93 @@ public:
   }
 
   void GpioSet(pf1550::CtrlPin pin, pf1550::GpioSignal signal) noexcept {
+#if defined(CONFIG_PF1550_GPIO_STRAPS_ENABLE) && CONFIG_PF1550_GPIO_STRAPS_ENABLE
+    const gpio_num_t gpio = strapPin(pin);
+    if (gpio == GPIO_NUM_NC) {
+      return;
+    }
+    const int level = strapLevel(pin, signal);
+    if (level >= 0) {
+      gpio_set_level(gpio, level);
+    }
+#else
     (void)pin;
     (void)signal;
-    // Strap pins are board-specific; no-op on generic ESP32-C6 eval wiring.
+#endif
   }
 
 private:
   I2CConfig config_;
   i2c_master_bus_handle_t bus_handle_;
   bool initialized_;
+  bool straps_initialized_;
   i2c_master_dev_handle_t dev_handle_{nullptr};
   uint8_t cached_dev_addr_{0xFF};
+
+  void initStrapGpios() noexcept {
+#if defined(CONFIG_PF1550_GPIO_STRAPS_ENABLE) && CONFIG_PF1550_GPIO_STRAPS_ENABLE
+    if (straps_initialized_) {
+      return;
+    }
+    const gpio_num_t pins[] = {
+        strapPin(pf1550::CtrlPin::Standby),
+        strapPin(pf1550::CtrlPin::UsbVbusEn),
+        strapPin(pf1550::CtrlPin::UsbOtgEn),
+    };
+    for (gpio_num_t gpio : pins) {
+      if (gpio == GPIO_NUM_NC) {
+        continue;
+      }
+      gpio_config_t cfg = {};
+      cfg.pin_bit_mask = 1ULL << static_cast<unsigned>(gpio);
+      cfg.mode = GPIO_MODE_OUTPUT;
+      cfg.pull_down_en = GPIO_PULLDOWN_DISABLE;
+      cfg.pull_up_en = GPIO_PULLUP_DISABLE;
+      cfg.intr_type = GPIO_INTR_DISABLE;
+      (void)gpio_config(&cfg);
+    }
+    straps_initialized_ = true;
+    ESP_LOGI(TAG_PF1550_I2C, "Strap GPIOs enabled (STBY=%d VBUS=%d OTG=%d)",
+             CONFIG_PF1550_GPIO_STANDBY, CONFIG_PF1550_GPIO_USB_VBUS_EN,
+             CONFIG_PF1550_GPIO_USB_OTG_EN);
+#endif
+  }
+
+  static gpio_num_t strapPin(pf1550::CtrlPin pin) noexcept {
+#if defined(CONFIG_PF1550_GPIO_STRAPS_ENABLE) && CONFIG_PF1550_GPIO_STRAPS_ENABLE
+    int raw = -1;
+    switch (pin) {
+    case pf1550::CtrlPin::Standby:
+      raw = CONFIG_PF1550_GPIO_STANDBY;
+      break;
+    case pf1550::CtrlPin::UsbVbusEn:
+      raw = CONFIG_PF1550_GPIO_USB_VBUS_EN;
+      break;
+    case pf1550::CtrlPin::UsbOtgEn:
+      raw = CONFIG_PF1550_GPIO_USB_OTG_EN;
+      break;
+    default:
+      return GPIO_NUM_NC;
+    }
+    return raw >= 0 ? static_cast<gpio_num_t>(raw) : GPIO_NUM_NC;
+#else
+    (void)pin;
+    return GPIO_NUM_NC;
+#endif
+  }
+
+  static int strapLevel(pf1550::CtrlPin pin, pf1550::GpioSignal signal) noexcept {
+    switch (pin) {
+    case pf1550::CtrlPin::Standby:
+      // LOW = RUN on Portenta (active-high for standby)
+      return signal == pf1550::GpioSignal::Active ? 1 : 0;
+    case pf1550::CtrlPin::UsbVbusEn:
+    case pf1550::CtrlPin::UsbOtgEn:
+      return signal == pf1550::GpioSignal::Active ? 1 : 0;
+    default:
+      return -1;
+    }
+  }
 
   i2c_master_dev_handle_t getOrCreateDeviceHandle(uint8_t addr) noexcept {
     if (dev_handle_ != nullptr && cached_dev_addr_ == addr) {
