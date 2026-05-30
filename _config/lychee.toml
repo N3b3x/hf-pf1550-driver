@@ -1,0 +1,28 @@
+# Lychee configuration — hf-pf1550-driver
+
+timeout = 30
+max_retries = 3
+max_redirects = 10
+retry_wait_time = 1
+user_agent = "lychee/0.21.0"
+method = "get"
+insecure = false
+exclude_all_private = true
+include_mail = false
+include_verbatim = false
+skip_missing = false
+
+exclude_path = [
+  "(/|^)_config/doxygen-extensions/",
+  "(/|^)examples/esp32/scripts/",
+  "(/|^)docs/datasheet/PF1550-i2c-register-reference.md",
+]
+
+accept = ["200", "429", "403"]
+
+exclude = [
+  '^https?://(www\.)?gnu\.org/licenses/.*',
+  '^https?://img\.shields\.io/badge/License-.*',
+  '^https://n3b3x\.github\.io/hf-pf1550-driver/?.*',
+  '^https?://(www\.)?nxp\.com/',
+]

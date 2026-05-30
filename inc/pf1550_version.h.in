@@ -1,0 +1,10 @@
+/**
+ * @file pf1550_version.h
+ * @brief Generated version header for hf-pf1550-driver
+ */
+#pragma once
+
+#define HF_PF1550_VERSION_MAJOR @HF_PF1550_VERSION_MAJOR@
+#define HF_PF1550_VERSION_MINOR @HF_PF1550_VERSION_MINOR@
+#define HF_PF1550_VERSION_PATCH @HF_PF1550_VERSION_PATCH@
+#define HF_PF1550_VERSION "@HF_PF1550_VERSION@"

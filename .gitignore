@@ -1,0 +1,8 @@
+
+# Local reference PDFs and scratch (never commit)
+_local_reference/**
+!_local_reference/README.md
+
+# Raw pdftotext dumps (use generated markdown instead)
+docs/datasheet/.PF1550-extract.txt
+docs/datasheet/PF1550-extract.txt

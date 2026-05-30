@@ -1,0 +1,64 @@
+/**
+ * @file pf1550_profiles.hpp
+ * @brief Board-specific PF1550 register init profiles
+ *
+ * @copyright Copyright (c) 2024-2026 HardFOC. All rights reserved.
+ */
+#pragma once
+
+#include <array>
+#include <cstdint>
+
+namespace pf1550::profiles {
+
+/**
+ * @struct RegisterWrite
+ * @brief Single I2C register write with optional post-write delay.
+ */
+struct RegisterWrite {
+  uint8_t reg;
+  uint8_t value;
+  /** Microseconds to wait after this write (0 = none). */
+  uint32_t delay_us;
+};
+
+/**
+ * @brief Portenta H7 / Synapse MCU-domain profile (VFR heritage).
+ *
+ * Sequence derived from PortentaH7_VFR I2C_PMIC_Initialize() and
+ * pw-controller-synapse power-management.md. Some SW3 voltage registers may
+ * be OTP-locked on programmed parts; writes are still issued for A0EP
+ * (unprogrammed OTP) bring-up.
+ *
+ * Register 0x50 (LDO2_CTRL commit) is intentionally last in this table.
+ */
+inline constexpr std::array<RegisterWrite, 23> kPortentaH7Default = {{
+    {0x4F, 0x00, 0},   // LDO2 -> 1.8 V
+    {0x4C, 0x05, 0},   // LDO1 -> 1.0 V
+    {0x4D, 0x0F, 0},   // LDO1 enable
+    {0x52, 0x09, 0},   // LDO3 -> 1.2 V
+    {0x53, 0x0F, 0},   // LDO3 enable
+    {0x58, 0x03, 0},   // LDO misc
+    {0x9C, 0x80, 1000}, // charger LED duty (Portenta bootloader)
+    {0x9E, 0x20, 1000}, // disable charger LED
+    {0x42, 0x02, 1000}, // SW3 current limit 2 A
+    {0x94, 0xA0, 0},   // VBUS input limit 1500 mA
+    {0x38, 0x07, 0},   // SW2 RUN 3.3 V
+    {0x39, 0x05, 0},   // SW2 STBY/DVS
+    {0x3A, 0x05, 0},   // SW2 alt
+    {0x3B, 0x01, 0},   // SW2 ctrl (standby voltage switch enabled)
+    {0x32, 0x07, 0},   // SW1 RUN 3.3 V (VCAP / MCU digital)
+    {0x33, 0x05, 0},   // SW1 STBY/DVS
+    {0x34, 0x05, 0},   // SW1 alt
+    {0x35, 0x01, 0},   // SW1 ctrl
+    {0x3E, 0x0F, 0},   // SW3 RUN (OTP may override on programmed parts)
+    {0x3F, 0x0E, 0},   // SW3 STBY/DVS
+    {0x40, 0x0E, 0},   // SW3 alt
+    {0x41, 0x0F, 0},   // SW3 ctrl
+    {0x50, 0x0F, 0},   // LDO2 commit / final enable (must be last)
+}};
+
+/** @brief Human-readable profile identifier for logging and HAL binding. */
+inline constexpr const char* kPortentaH7DefaultName = "portenta_h7_default";
+
+} // namespace pf1550::profiles
