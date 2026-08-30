@@ -3,9 +3,10 @@
  * @brief Hardware-agnostic driver for the NXP PF1550 PMIC family.
  *
  * The PF1550 is a multi-rail power-management IC (3 bucks, 3 LDOs, Li-Ion
- * charger, VSNVS backup LDO, OTP-programmable sequencing) used on the
- * **Arduino Portenta H7** (`MC34PF1550A0EP`) and the **Synapse** MCU domain
- * of the `pw-controller` boards.
+ * charger, VSNVS backup LDO, OTP-programmable sequencing). Named register
+ * sequences for the Arduino Portenta H7 eval module live in
+ * @ref pf1550_profiles.hpp; other hosts pass their own table to
+ * @ref PF1550::ApplyProfile.
  *
  * @par Architecture
  *  - Templated on a **CRTP `BusInterface`** so the same driver runs on STM32H7
@@ -14,8 +15,7 @@
  *  - Returns plain `bool` for success; persistent `error_flags_` records the
  *    last failure category (see @ref Error).
  *  - Diagnostic surface (@ref ReadDiagnosticSnapshot, @ref RunPowerSelfTest,
- *    interrupt clear helpers) is exposed for use by HAL managers and the
- *    DIOVV-traceable PMIC monitor thread.
+ *    interrupt clear helpers) for a host monitor thread.
  *
  * @par Datasheet
  *  - Authoritative reference: NXP PF1550 Rev. 7 (29 September 2021).
@@ -55,9 +55,8 @@ namespace pf1550 {
  *   provided the bus adapter serialises I²C transactions.
  *
  * @par Single-point-of-failure mitigation
- *   See @ref pf1550::FaultSeverityPortentaH7 and the discussion in
- *   `docs/quality/diovv-pmic.md` for how each register-level fault maps to
- *   a system-level severity (MCU still alive vs MCU dead).
+ *   See @ref pf1550::FaultSeverityPortentaH7 — that mapping is the Portenta H7
+ *   MCU-on-SW3 eval tree. Other hosts supply their own severity table.
  */
 template <typename BusType>
 class PF1550 {

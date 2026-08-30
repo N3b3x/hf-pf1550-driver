@@ -1,6 +1,9 @@
 /**
  * @file pf1550_profiles.hpp
- * @brief Board-specific PF1550 register init profiles
+ * @brief Named PF1550 register-write sequences (eval / reference hosts).
+ *
+ * Downstream products that are not these eval boards pass their own table
+ * to @ref pf1550::PF1550::ApplyProfile.
  *
  * @copyright Copyright (c) 2024-2026 HardFOC. All rights reserved.
  */
@@ -25,10 +28,9 @@ struct RegisterWrite {
 /**
  * @brief Portenta H7 / Synapse MCU-domain profile (VFR heritage).
  *
- * Sequence derived from PortentaH7_VFR I2C_PMIC_Initialize() and
- * pw-controller-synapse power-management.md. Some SW3 voltage registers may
- * be OTP-locked on programmed parts; writes are still issued for A0EP
- * (unprogrammed OTP) bring-up.
+ * Sequence derived from PortentaH7_VFR I2C_PMIC_Initialize(). Some SW3 voltage
+ * registers may be OTP-locked on programmed parts; writes are still issued for
+ * A0EP (unprogrammed OTP) bring-up.
  *
  * Register 0x50 (LDO2_CTRL commit) is intentionally last in this table.
  */
@@ -70,7 +72,7 @@ inline constexpr const char* kPortentaH7DefaultName = "portenta_h7_default";
  * Differences from kPortentaH7Default:
  * - SW1 (+3V1SW) voltage + enable written **before** LDO registers.
  * - SW2_CTRL = 0x0F (RUN + STBY + sleep + LPWR) keeps carrier +3V3 up.
- * - SW1 RUN set to 3.0 V (code 0x06) per Synapse / Portenta SW1 target.
+ * - SW1 RUN set to 3.0 V (code 0x06) as used on the Portenta H7 SW1 rail.
  *
  * Requires a **full PMIC power cycle** after first apply on cold boot.
  */
