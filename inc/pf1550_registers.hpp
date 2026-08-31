@@ -3,7 +3,7 @@
  * @brief NXP PF1550 family I2C register map, bit-field constants, and OTP keys.
  *
  * Covers MC34PF1550*, MC32PF1550*, and the unprogrammed-OTP variant
- * `MC34PF1550A0EP` used on Arduino Portenta H7 and the Synapse MCU domain.
+ * `MC34PF1550A0EP` used on Arduino Portenta H7 eval modules.
  *
  * Register addresses follow the NXP PF1550 datasheet (Rev. 7,
  * September 2021) Section 12 *Register map*:
@@ -243,7 +243,7 @@ enum class ChargerState : uint8_t {
  *  - `0x00..0x0E` → 1.10 V .. 2.50 V  (step 100 mV)
  *  - `0x0F..0x1F` → step 50 mV up to 3.90 V (typical step varies — see table)
  *
- * Only the codes used on Portenta H7 / Synapse are enumerated.
+ * Only the codes used on Arduino Portenta H7 eval are enumerated.
  *
  * @note The reverse mapping (code → mV) is also provided as a free function in
  *       @ref pf1550_voltage_tables.hpp for diagnostics.

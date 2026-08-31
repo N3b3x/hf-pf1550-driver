@@ -15,14 +15,13 @@
  *  3. **Per-category SENSE registers** — read-only *live* state used to
  *     differentiate a transient event from an ongoing condition.
  *
- * The diagnostics snapshot in this file captures **all three** so higher
- * layers can decide between *latched warning*, *ongoing fault*, and
+ * The diagnostics snapshot in this file captures **all three** so a host
+ * can decide between *latched warning*, *ongoing fault*, and
  * *MCU-power-affecting fault* without re-reading the bus.
  *
- * @par DIOVV mapping
- *   This header is the canonical fault-classification surface referenced by
- *   `docs/quality/diovv-pmic.md` (Design Inputs → Outputs traceability).
- *   Adding or removing a flag here requires updating the traceability table.
+ * @par Host fault mapping
+ *   Downstream products that reuse this driver must keep their own
+ *   traceability table in sync when adding or removing a flag here.
  *
  * @copyright Copyright (c) 2024-2026 HardFOC. All rights reserved.
  */
@@ -185,7 +184,7 @@ constexpr RailId FaultRail(uint32_t single_flag) noexcept {
 }
 
 /**
- * @brief Classify the severity of a *Portenta H7 / Synapse* fault.
+ * @brief Classify the severity of a *Portenta H7 eval* fault.
  *
  * On other platforms the same flag may have a different severity (e.g. a
  * board that runs the MCU from SW2 instead of SW3). Callers should provide

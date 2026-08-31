@@ -26,7 +26,7 @@ struct RegisterWrite {
 };
 
 /**
- * @brief Portenta H7 / Synapse MCU-domain profile (VFR heritage).
+ * @brief Portenta H7 eval MCU-domain profile (VFR heritage).
  *
  * Sequence derived from PortentaH7_VFR I2C_PMIC_Initialize(). Some SW3 voltage
  * registers may be OTP-locked on programmed parts; writes are still issued for

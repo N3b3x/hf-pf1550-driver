@@ -50,7 +50,7 @@ namespace pf1550 {
  *
  * @par Thread-safety
  *   The driver itself is **not** thread-safe by design — it expects the
- *   `BusType` adapter (and the HAL `Pf1550Handler` wrapping it) to enforce
+ *   `BusType` adapter (or a host mutex wrapping it) to enforce
  *   single-writer access. Concurrent reads from another core are tolerated
  *   provided the bus adapter serialises I²C transactions.
  *

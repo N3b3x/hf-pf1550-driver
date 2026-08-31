@@ -30,8 +30,8 @@ namespace pf1550 {
  * @brief Decode a 6-bit SW (BUCK) voltage register field to millivolts.
  *
  * Per datasheet Table 31 (SW1/SW2/SW3 voltage encoding), the mapping is a
- * **non-linear lookup table** — only the codes verified on Portenta H7 /
- * Synapse hardware are decoded here. Other codes return `0` and the caller
+ * **non-linear lookup table** — only the codes verified on Portenta H7
+ * eval hardware are decoded here. Other codes return `0` and the caller
  * should log the raw register byte for inspection.
  *
  * | Code (hex) | mV   | Notes |
