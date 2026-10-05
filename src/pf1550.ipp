@@ -452,6 +452,28 @@ bool PF1550<BusType>::ReadDiagnosticSnapshot(DiagnosticSnapshot& out) noexcept {
 }
 
 template <typename BusType>
+bool PF1550<BusType>::RefreshStatusSnapshot(DiagnosticSnapshot& snap) noexcept {
+  bool ok = true;
+  ok &= readReg8(static_cast<uint8_t>(Register::IntCategory), snap.int_category);
+  ok &= readReg8(static_cast<uint8_t>(Register::StateInfo),   snap.state_info_reg);
+  snap.state = DecodeStateInfo(snap.state_info_reg);
+  uint8_t chg_raw = 0;
+  if (readReg8(static_cast<uint8_t>(Register::ChgSense), chg_raw)) {
+    snap.chg_sense_reg = chg_raw;
+    snap.charger = DecodeChargerSense(chg_raw);
+  } else {
+    ok = false;
+  }
+  ok &= readReg8(static_cast<uint8_t>(Register::VbusSns), snap.vbus_sns_reg);
+  ok &= fillFaultSnapshot(snap);
+  snap.read_ok = ok;
+  if (!ok) {
+    setError(Error::DiagnosticRead);
+  }
+  return ok;
+}
+
+template <typename BusType>
 bool PF1550<BusType>::RunPowerSelfTest(SelfTestResult& out) noexcept {
   out = SelfTestResult{};
   out.ran = true;

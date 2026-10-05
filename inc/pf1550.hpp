@@ -263,6 +263,22 @@ public:
   bool ReadDiagnosticSnapshot(DiagnosticSnapshot& out) noexcept;
 
   /**
+   * @brief Refresh only the status part of a snapshot (≈14 register reads).
+   *
+   * Re-reads what can change without a register write: INT_CATEGORY,
+   * STATE_INFO, charger and VBUS sense, and the latched + live fault
+   * registers (with the per-rail fault marks). Identity, rail set points and
+   * enables and the VBUS input limit are kept from the last
+   * @ref ReadDiagnosticSnapshot into @p snap — a monitor polling at 20 Hz
+   * does a full read now and then (say once a second) to catch a
+   * configuration change, and the status in between at half the bus time.
+   *
+   * @param[in,out] snap Snapshot from a previous full read.
+   * @return true when every status read succeeded (sets `read_ok`).
+   */
+  bool RefreshStatusSnapshot(DiagnosticSnapshot& snap) noexcept;
+
+  /**
    * @brief Boot-time self-test.
    *
    * Reads a fresh snapshot and classifies it against the

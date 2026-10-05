@@ -101,6 +101,7 @@ through `pf1550.hpp`; the implementation lives in `src/pf1550.ipp`.
 | Method | Description |
 |--------|-------------|
 | `ReadDiagnosticSnapshot(DiagnosticSnapshot&)` | One-shot read of identity, state, rails, faults, charger. |
+| `RefreshStatusSnapshot(DiagnosticSnapshot&)` | Status only (state, charger, VBUS, latched + live faults: ≈14 reads); identity and rail configuration kept from the last full read. For a periodic monitor: status every tick, full read now and then. |
 | `RunPowerSelfTest(SelfTestResult&)` | Boot-time classifier producing `FaultSeverity` (Info/Warning/Critical/McuKill). |
 
 ### Error tracking
