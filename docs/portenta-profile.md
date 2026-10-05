@@ -14,7 +14,7 @@ permalink: /docs/portenta-profile/
 |--------|-----------|---------|------|
 | SW1 | BUCK1 | 3.0 V (+3V1SW) | USB/ULPI, SDRAM, ETH; **LDO1/2/3 inputs** |
 | SW2 | BUCK2 | 3.3 V (+VOUT) | Carrier HDC / JTAG VTref |
-| SW3 | BUCK3 | 3.1 V (VCORE) | STM32, QSPI, MIPI |
+| SW3 | BUCK3 | 3.3 V on the modules read so far (OTP code 0x0F, Table 37; older notes said 3.1 V) | STM32, QSPI, MIPI |
 | LDO1 | — | 1.0 V | MIPI (input = +3V1SW) |
 | LDO2 | — | 1.8 V | MIPI, USB/ULPI |
 | LDO3 | — | 1.2 V | STM32 DSI, ETH PHY |
@@ -59,7 +59,7 @@ carrier boards (recommended when LDO inputs = +3V1SW).
 Call **early in CM7 `main()`**, before USB/Ethernet, after GPIO straps
 (STANDBY LOW, USB rails HIGH).
 
-Register `0x50` (LDO2_CTRL commit) is written **last**. Some SW3 voltage registers may be OTP-locked on factory-programmed parts.
+Register `0x50` (LDO2_CTRL commit) is written **last**. SW3's voltage registers are OTP-loaded and read-only (no DVS on SW3); with SW1/SW2 DVS disabled their voltage registers are read-only too (datasheet §6.2.5) — profile writes to them are ignored by the part.
 
 ## Important behavior
 
