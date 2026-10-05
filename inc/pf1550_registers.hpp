@@ -253,7 +253,7 @@ enum class SwVoltageCode : uint8_t {
   V2_5  = 0x05, ///< 2.500 V (Portenta STBY/SLP setting)
   V3_0  = 0x06, ///< 3.000 V (SW1 RUN on Portenta carrier profile)
   V3_3  = 0x07, ///< 3.300 V (SW2 RUN on Portenta — carrier +3V3)
-  V3_1  = 0x0D, ///< 3.100 V (SW3 OTP-locked on Portenta)
+  V3_1  = 0x0D, ///< SW3 Table 37 code for 3.100 V (SW3 is OTP-loaded, read-only; SW1/SW2 decode 0x0D as 3.30 V)
 };
 
 /// @brief Common LDO output voltage codes used on Portenta H7 (Table 41).

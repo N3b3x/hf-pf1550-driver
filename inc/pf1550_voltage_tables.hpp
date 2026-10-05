@@ -27,42 +27,43 @@
 namespace pf1550 {
 
 /**
- * @brief Decode a 6-bit SW (BUCK) voltage register field to millivolts.
+ * @brief SW1 / SW2 output voltage, **DVS disabled** (`OTP_SWx_DVS_SEL = 1`).
  *
- * Per datasheet Table 31 (SW1/SW2/SW3 voltage encoding), the mapping is a
- * **non-linear lookup table** — only the codes verified on Portenta H7
- * eval hardware are decoded here. Other codes return `0` and the caller
- * should log the raw register byte for inspection.
+ * Datasheet Rev. 7 Table 31, right column: eight set points, every code from
+ * 7 up is 3.30 V. Portenta H7 runs SW1 at 3.0 V and SW2 at 3.3 V — values that
+ * exist only in this table, so its SW1/SW2 are DVS-disabled. (In that mode the
+ * datasheet makes `SWx_VOLT` read-only.)
  *
- * | Code (hex) | mV   | Notes |
- * |------------|------|-------|
- * | `0x00`     | 1100 | Datasheet base |
- * | `0x03`     | 1500 | — |
- * | `0x05`     | 2500 | Portenta SW1/2 STBY/SLP |
- * | `0x06`     | 3000 | SW1 RUN (carrier profile) |
- * | `0x07`     | 3300 | SW2 RUN (Portenta +3V3 / carrier VOUT) |
- * | `0x0D`     | 3100 | SW3 OTP-locked on Portenta (+3V1 VCORE) |
- * | `0x0F`     | 3300 | Alternate factory code seen on some parts |
+ * | Code | mV | | Code | mV |
+ * |------|----|-|------|----|
+ * | 0 | 1100 | | 4 | 1800 |
+ * | 1 | 1200 | | 5 | 2500 |
+ * | 2 | 1350 | | 6 | 3000 |
+ * | 3 | 1500 | | ≥ 7 | 3300 |
  *
- * Extend this LUT when you measure additional codes against silicon.
- *
- * @param code  Raw 6-bit value from `SWn_VOLT[5:0]`.
- * @return Output voltage in mV, or `0` if the code is not yet table-mapped.
+ * @param code Raw `SWx_VOLT[5:0]`.
+ * @return Output voltage in mV.
  */
 constexpr uint16_t SwCodeToMillivolts(uint8_t code) noexcept {
-  switch (code & 0x3FU) {
-    case 0x00: return 1100;
-    case 0x01: return 1200;
-    case 0x02: return 1350;
-    case 0x03: return 1500;
-    case 0x04: return 1800;
-    case 0x05: return 2500;
-    case 0x06: return 3000;
-    case 0x07: return 3300;
-    case 0x0D: return 3100;
-    case 0x0F: return 3300;
-    default:   return 0;
-  }
+  constexpr uint16_t kTable[7] = {1100, 1200, 1350, 1500, 1800, 2500, 3000};
+  const uint8_t c = static_cast<uint8_t>(code & 0x3FU);
+  return c < 7U ? kTable[c] : 3300U;
+}
+
+/**
+ * @brief SW1 / SW2 output voltage, **DVS enabled** (`OTP_SWx_DVS_SEL = 0`):
+ *        0.6000 V + 12.5 mV × code (Table 31, left column), rounded to mV.
+ */
+constexpr uint16_t SwDvsCodeToMillivolts(uint8_t code) noexcept {
+  return static_cast<uint16_t>(600U + (static_cast<uint32_t>(code & 0x3FU) * 25U + 1U) / 2U);
+}
+
+/**
+ * @brief SW3 output voltage (Table 37): 1.80 V + 100 mV × `SW3_VOLT[3:0]`.
+ * @note SW3 is loaded from OTP and read-only (it has no DVS) — writes are ignored.
+ */
+constexpr uint16_t Sw3CodeToMillivolts(uint8_t code) noexcept {
+  return static_cast<uint16_t>(1800U + 100U * (code & 0x0FU));
 }
 
 /**
@@ -81,7 +82,6 @@ constexpr uint8_t SwMillivoltsToCode(uint16_t mv) noexcept {
     case 2500: return 0x05;
     case 3000: return 0x06;
     case 3300: return 0x07;
-    case 3100: return 0x0D;
     default:   return 0xFFU;
   }
 }
@@ -244,8 +244,13 @@ constexpr ChargerState DecodeChargerSense(uint8_t reg) noexcept {
 static_assert(SwCodeToMillivolts(0x06) == 3000, "SW code 0x06 → 3.00 V (Portenta SW1 RUN)");
 static_assert(SwCodeToMillivolts(static_cast<uint8_t>(SwVoltageCode::V3_3)) == 3300,
               "SwVoltageCode::V3_3 must decode to 3.30 V");
-static_assert(SwCodeToMillivolts(static_cast<uint8_t>(SwVoltageCode::V3_1)) == 3100,
-              "SwVoltageCode::V3_1 must decode to 3.10 V");
+static_assert(Sw3CodeToMillivolts(static_cast<uint8_t>(SwVoltageCode::V3_1)) == 3100,
+              "SW3 code 0x0D → 3.10 V (Table 37)");
+static_assert(SwCodeToMillivolts(0x0D) == 3300, "SW1/SW2 DVS-disabled: every code ≥ 7 is 3.30 V");
+static_assert(SwDvsCodeToMillivolts(0x00) == 600 && SwDvsCodeToMillivolts(0x3F) == 1388 &&
+                  SwDvsCodeToMillivolts(0x20) == 1000,
+              "SW1/SW2 DVS-enabled: 0.6 V + 12.5 mV steps");
+static_assert(Sw3CodeToMillivolts(0x0F) == 3300 && Sw3CodeToMillivolts(0x00) == 1800, "SW3 Table 37");
 static_assert(SwMillivoltsToCode(3300) == 0x07, "3300 mV round-trip → 0x07");
 static_assert(LdoCodeToMillivolts(static_cast<uint8_t>(LdoVoltageCode::V1_0), /*is_ldo2=*/false) == 1000,
               "LDO1 code 0x05 → 1.0 V");

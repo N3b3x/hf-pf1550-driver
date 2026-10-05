@@ -283,6 +283,21 @@ public:
     error_flags_ &= static_cast<uint16_t>(~mask);
   }
 
+  /**
+   * @brief Declare the SW1 / SW2 voltage encoding the part's OTP selects.
+   * @details `OTP_SWx_DVS_SEL` decides between two tables (datasheet Table
+   *          31): DVS enabled 0.6–1.3875 V in 12.5 mV steps, DVS disabled an
+   *          8-point table up to 3.3 V. It lives in OTP (indirect access only),
+   *          so the board declares it; the default is **disabled** (Portenta
+   *          H7: SW1 3.0 V / SW2 3.3 V exist only in that table).
+   * @param sw_index 1 or 2.
+   */
+  void SetSwDvsEnabled(uint8_t sw_index, bool enabled) noexcept {
+    if (sw_index == 1U || sw_index == 2U) {
+      sw_dvs_enabled_[sw_index - 1U] = enabled;
+    }
+  }
+
   /// @brief Driver version (string).
   static constexpr const char* GetDriverVersion() noexcept { return HF_PF1550_VERSION; }
 
@@ -299,6 +314,7 @@ private:
   uint8_t  address_;
   bool     initialized_;
   uint16_t error_flags_;
+  bool     sw_dvs_enabled_[2]{false, false};  ///< SW1, SW2: OTP_SWx_DVS_SEL == 0
 };
 
 } // namespace pf1550

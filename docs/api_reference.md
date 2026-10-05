@@ -113,7 +113,10 @@ through `pf1550.hpp`; the implementation lives in `src/pf1550.ipp`.
 
 | Function | Purpose |
 |----------|---------|
-| `SwCodeToMillivolts(uint8_t code)` | Decode SW1/2/3 voltage code (Portenta-verified subset). |
+| `SwCodeToMillivolts(uint8_t code)` | SW1/SW2, DVS disabled (Table 31 right column; every code ≥ 7 = 3.30 V). |
+| `SwDvsCodeToMillivolts(uint8_t code)` | SW1/SW2, DVS enabled (0.6 V + 12.5 mV × code). |
+| `Sw3CodeToMillivolts(uint8_t code)` | SW3 (Table 37: 1.8 V + 100 mV × code; OTP-loaded, read-only). |
+| `SetSwDvsEnabled(sw, enabled)` | Declare the OTP DVS selection for SW1/SW2 (default disabled). |
 | `SwMillivoltsToCode(uint16_t mv)` | Reverse. `0xFF` if out of grid. |
 | `LdoCodeToMillivolts(uint8_t code, bool is_ldo2)` | Decode LDO1/3 (group A) or LDO2 (group B). |
 | `VbusLimitRegToMilliamps(uint8_t)` / `VbusLimitMilliampsToReg(uint16_t)` | VBUS LUT. |

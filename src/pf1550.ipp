@@ -368,8 +368,11 @@ bool PF1550<BusType>::fillRailSnapshot(DiagnosticSnapshot& snap) noexcept {
     auto& d = snap.rails[static_cast<size_t>(m.id)];
     if (!readReg8(static_cast<uint8_t>(m.volt_reg), d.volt_reg)) { ok = false; continue; }
     if (!readReg8(static_cast<uint8_t>(m.ctrl_reg), d.ctrl_reg)) { ok = false; continue; }
-    if (m.is_sw) {
-      d.set_voltage_mv = SwCodeToMillivolts(d.volt_reg & 0x3FU);
+    if (m.id == RailId::Sw3) {
+      d.set_voltage_mv = Sw3CodeToMillivolts(d.volt_reg);  /* Table 37 */
+    } else if (m.is_sw) {
+      const bool dvs = sw_dvs_enabled_[m.id == RailId::Sw1 ? 0U : 1U];
+      d.set_voltage_mv = dvs ? SwDvsCodeToMillivolts(d.volt_reg) : SwCodeToMillivolts(d.volt_reg);
     } else {
       d.set_voltage_mv = LdoCodeToMillivolts(d.volt_reg & 0x1FU, m.is_ldo2);
     }
